@@ -5,3 +5,4 @@ resources:
   - trigger-binding.yaml
   - trigger-template.yaml
   - event-listener.yaml
+  - route.yaml

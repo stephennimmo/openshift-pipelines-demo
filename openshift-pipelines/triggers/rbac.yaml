@@ -15,6 +15,7 @@ rules:
       - triggerbindings
       - triggertemplates
       - triggers
+      - interceptors
     verbs:
       - get
       - list
@@ -50,3 +51,30 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
   name: pipeline-trigger-role
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: pipeline-clusterinterceptors
+rules:
+  - apiGroups:
+      - triggers.tekton.dev
+    resources:
+      - clusterinterceptors
+    verbs:
+      - get
+      - list
+      - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: pipeline-clusterinterceptors
+subjects:
+  - kind: ServiceAccount
+    name: pipeline-sa
+    namespace: openshift-pipelines
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: pipeline-clusterinterceptors

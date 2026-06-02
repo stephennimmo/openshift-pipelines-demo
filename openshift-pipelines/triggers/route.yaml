@@ -1,0 +1,11 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: el-central-build-listener
+  namespace: openshift-pipelines
+spec:
+  to:
+    kind: Service
+    name: el-central-build-listener
+  port:
+    targetPort: http-listener

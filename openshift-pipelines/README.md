@@ -1,6 +1,16 @@
-# demo-pipelines
+# openshift-pipelines
 
-A centralized OpenShift Pipelines (Tekton) setup that provides a single entry point for building and deploying multiple projects. The pipeline auto-detects the project type and runs the appropriate build task.
+A centralized OpenShift Pipelines (Tekton) setup that provides a single entry point for building and deploying multiple projects. The pipeline auto-detects the project type and runs the appropriate build task. All resources are deployed into the `openshift-pipelines` namespace.
+
+## Directory Structure
+
+```
+openshift-pipelines/
+├── operator/               # Operator installation (Namespace, OperatorGroup, Subscription)
+├── tasks/                  # Custom Tekton Tasks
+├── pipeline/               # Central build Pipeline
+└── triggers/               # EventListener, TriggerBinding, TriggerTemplate, RBAC
+```
 
 ## Architecture
 
@@ -27,6 +37,14 @@ GitHub Webhook --> EventListener --> TriggerBinding --> TriggerTemplate --> Pipe
 ```
 
 ## Components
+
+### Operator
+
+| Resource         | Description                                              |
+| ---              | ---                                                      |
+| `Namespace`      | Creates the `openshift-pipelines` namespace              |
+| `OperatorGroup`  | Configures AllNamespaces install mode                    |
+| `Subscription`   | Installs the `openshift-pipelines-operator-rh` operator  |
 
 ### Tasks
 
@@ -65,13 +83,8 @@ The detected type is emitted as a task result, and `when` expressions on the bui
 
 ## Deployment
 
+```shell
+oc apply -k openshift-pipelines/
+```
+
 See the [root README](../README.md) for full installation instructions.
-
-## Image Naming
-
-Built images are pushed to:
-
-```
-quay.io/stephennimmo/<repo-name>:<commit-sha>
-quay.io/stephennimmo/<repo-name>:latest
-```
