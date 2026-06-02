@@ -1,13 +1,91 @@
 # openshift-pipelines-demo
 
-A centralized OpenShift Pipelines demo designed to be used by multiple projects. This demonstrates how to reduce technical toil on individual development teams by providing shared build and deployment infrastructure.
+A centralized OpenShift Pipelines (Tekton) setup that provides a single entry point for building and deploying multiple projects. The pipeline auto-detects the project type and runs the appropriate build task. All resources are deployed into the `openshift-pipelines` namespace.
 
-## Projects
+## Demo Project
 
-| Project                                    | Description                                                              |
-| ---                                        | ---                                                                      |
-| [api-hello-world](api-hello-world)         | A simple Hello World REST API built with Quarkus                         |
-| [openshift-pipelines](openshift-pipelines) | OpenShift Pipelines operator, centralized Tekton tasks, pipeline, and triggers |
+| Project | Description |
+| --- | --- |
+| [quarkus-demo-api](https://github.com/stephennimmo/quarkus-demo-api) | A Quarkus REST API used as the demo project for this pipeline |
+
+## Directory Structure
+
+```
+├── operator/       # Operator installation (Namespace, OperatorGroup, Subscription)
+├── pipeline/       # Central build Pipeline
+├── tasks/          # Custom Tekton Tasks
+├── triggers/       # EventListener, TriggerBinding, TriggerTemplate, RBAC
+└── kustomization.yaml
+```
+
+## Architecture
+
+```
+GitHub Webhook --> EventListener --> TriggerBinding --> TriggerTemplate --> PipelineRun
+                                                                              |
+                                                                              v
+                                                                    Central Build Pipeline
+                                                                              |
+                                                              +---------------+---------------+
+                                                              |               |               |
+                                                          git-clone    build-detect-type      |
+                                                                              |               |
+                                                                    +---------+---------+     |
+                                                                    |                   |     |
+                                                            build-java-maven      build-python|
+                                                                    |                   |     |
+                                                                    +---------+---------+     |
+                                                                              |               |
+                                                                      build-image-push--------+
+                                                                              |
+                                                                              v
+                                                                  quay.io/stephennimmo
+```
+
+## Components
+
+### Operator
+
+| Resource | Description |
+| --- | --- |
+| `Namespace` | Creates the `openshift-pipelines` namespace |
+| `OperatorGroup` | Configures AllNamespaces install mode |
+| `Subscription` | Installs the `openshift-pipelines-operator-rh` operator |
+
+### Tasks
+
+| Task | Description |
+| --- | --- |
+| `build-detect-type` | Inspects workspace to determine project type (java-maven, python) |
+| `build-java-maven` | Builds a Java Maven project using the Maven wrapper |
+| `build-python` | Builds a Python project by installing dependencies |
+| `build-image-push` | Builds a container image with buildah and pushes to quay.io/stephennimmo |
+| `git-clone` | Standard ClusterTask shipped with OpenShift Pipelines |
+
+### Pipeline
+
+| Pipeline | Description |
+| --- | --- |
+| `central-build-pipeline` | Orchestrates git-clone, build-type detection, conditional build, and image push |
+
+### Triggers
+
+| Resource | Description |
+| --- | --- |
+| `github-push-binding` | Extracts repo URL, name, commit SHA, and branch from GitHub push events |
+| `central-build-trigger-template` | Creates a PipelineRun with a VolumeClaimTemplate workspace |
+| `central-build-listener` | EventListener with CEL interceptor filtering GitHub push events |
+
+## Build Type Detection
+
+The `build-detect-type` task inspects the cloned source and determines the project type:
+
+| Marker | Detected Type |
+| --- | --- |
+| `pom.xml` and `mvnw` present | `java-maven` |
+| `requirements.txt`, `setup.py`, or `pyproject.toml` | `python` |
+
+The detected type is emitted as a task result, and `when` expressions on the build tasks ensure only the matching build task runs.
 
 ## Prerequisites
 
@@ -22,7 +100,7 @@ A centralized OpenShift Pipelines demo designed to be used by multiple projects.
 Apply the kustomization to install the OpenShift Pipelines operator, create the `openshift-pipelines` namespace, and deploy the centralized pipeline tasks, triggers, and RBAC:
 
 ```shell
-oc apply -k openshift-pipelines/
+oc apply -k .
 ```
 
 Wait for the operator to install and Tekton components to become ready:
@@ -34,7 +112,7 @@ oc wait --for=condition=Ready tektonconfig/config --timeout=300s -n openshift-pi
 Once ready, re-apply to ensure the Tekton CRD-based resources (Tasks, Pipeline, Triggers) are created:
 
 ```shell
-oc apply -k openshift-pipelines/
+oc apply -k .
 ```
 
 ### Step 2 -- Get the EventListener Route URL
@@ -83,17 +161,6 @@ Push a commit to a configured repository and verify the pipeline runs:
 oc get pipelineruns -n openshift-pipelines -w
 ```
 
-## How It Works
-
-1. A **GitHub push event** hits the `central-build-listener` EventListener
-2. The **CEL interceptor** filters for push events and the **TriggerBinding** extracts the repo URL, name, commit SHA, and branch
-3. The **TriggerTemplate** creates a `PipelineRun` with a shared workspace
-4. The **central-build-pipeline** runs the following tasks:
-   - `git-clone` -- clones the repository at the specified commit
-   - `build-detect-type` -- inspects the source to determine the project type
-   - `build-java-maven` or `build-python` -- runs the appropriate build (conditional via `when` expressions)
-   - `build-image-push` -- builds a container image with buildah and pushes to Quay.io
-
 ## Image Naming
 
 Built images are pushed to:
@@ -102,5 +169,3 @@ Built images are pushed to:
 quay.io/stephennimmo/<repo-name>:<commit-sha>
 quay.io/stephennimmo/<repo-name>:latest
 ```
-
-Push1
