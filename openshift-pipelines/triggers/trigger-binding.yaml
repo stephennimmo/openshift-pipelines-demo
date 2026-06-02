@@ -12,3 +12,5 @@ spec:
       value: $(body.after)
     - name: branch
       value: $(body.ref)
+    - name: context-dir
+      value: "api-hello-world"

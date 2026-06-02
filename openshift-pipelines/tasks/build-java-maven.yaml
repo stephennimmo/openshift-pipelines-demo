@@ -5,10 +5,11 @@ metadata:
 spec:
   description: >-
     Builds a Java Maven project using the Maven wrapper.
-  workspaces:
-    - name: source
-      description: The workspace containing the cloned source code
   params:
+    - name: context-dir
+      type: string
+      default: "."
+      description: Subdirectory within the workspace containing the project
     - name: MAVEN_GOALS
       type: string
       default: "package"
@@ -17,13 +18,16 @@ spec:
       type: string
       default: "true"
       description: Whether to skip tests during the build
+  workspaces:
+    - name: source
+      description: The workspace containing the cloned source code
   steps:
     - name: build
       image: registry.redhat.io/ubi9/openjdk-21:latest
       securityContext:
         runAsNonRoot: true
         runAsUser: 1001
-      workingDir: $(workspaces.source.path)
+      workingDir: $(workspaces.source.path)/$(params.context-dir)
       script: |
         #!/usr/bin/env bash
         set -euo pipefail

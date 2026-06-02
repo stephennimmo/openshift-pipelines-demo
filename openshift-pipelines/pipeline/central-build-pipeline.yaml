@@ -19,6 +19,10 @@ spec:
     - name: branch
       type: string
       description: The Git branch ref
+    - name: context-dir
+      type: string
+      default: "."
+      description: Subdirectory within the repo containing the project
   workspaces:
     - name: source
       description: Shared workspace for the pipeline source code
@@ -40,6 +44,8 @@ spec:
           value: $(params.commit-sha)
         - name: DELETE_EXISTING
           value: "true"
+        - name: SUBDIRECTORY
+          value: ""
       workspaces:
         - name: output
           workspace: source
@@ -49,6 +55,9 @@ spec:
         name: build-detect-type
       runAfter:
         - git-clone
+      params:
+        - name: context-dir
+          value: $(params.context-dir)
       workspaces:
         - name: source
           workspace: source
@@ -63,6 +72,9 @@ spec:
           operator: in
           values:
             - "java-maven"
+      params:
+        - name: context-dir
+          value: $(params.context-dir)
       workspaces:
         - name: source
           workspace: source
@@ -77,6 +89,9 @@ spec:
           operator: in
           values:
             - "python"
+      params:
+        - name: context-dir
+          value: $(params.context-dir)
       workspaces:
         - name: source
           workspace: source
@@ -92,6 +107,8 @@ spec:
           value: $(params.repo-name)
         - name: IMAGE_TAG
           value: $(params.commit-sha)
+        - name: context-dir
+          value: $(params.context-dir)
       workspaces:
         - name: source
           workspace: source

@@ -7,6 +7,11 @@ spec:
     Inspects the cloned source to determine the project build type.
     Checks for Java Maven (pom.xml), Python (requirements.txt or setup.py),
     and emits the result as a string.
+  params:
+    - name: context-dir
+      type: string
+      default: "."
+      description: Subdirectory within the workspace containing the project
   workspaces:
     - name: source
       description: The workspace containing the cloned source code
@@ -19,7 +24,7 @@ spec:
       securityContext:
         runAsNonRoot: true
         runAsUser: 65532
-      workingDir: $(workspaces.source.path)
+      workingDir: $(workspaces.source.path)/$(params.context-dir)
       script: |
         #!/usr/bin/env bash
         set -euo pipefail

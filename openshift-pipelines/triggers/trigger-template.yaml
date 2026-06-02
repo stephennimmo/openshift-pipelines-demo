@@ -12,6 +12,9 @@ spec:
       description: The Git commit SHA
     - name: branch
       description: The Git branch ref
+    - name: context-dir
+      description: Subdirectory within the repo containing the project
+      default: "."
   resourcetemplates:
     - apiVersion: tekton.dev/v1
       kind: PipelineRun
@@ -31,6 +34,8 @@ spec:
             value: $(tt.params.commit-sha)
           - name: branch
             value: $(tt.params.branch)
+          - name: context-dir
+            value: $(tt.params.context-dir)
         workspaces:
           - name: source
             volumeClaimTemplate:

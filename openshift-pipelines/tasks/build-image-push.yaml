@@ -6,10 +6,11 @@ spec:
   description: >-
     Builds a container image using buildah with the Containerfile
     in the project root, then pushes to quay.io.
-  workspaces:
-    - name: source
-      description: The workspace containing the built source code
   params:
+    - name: context-dir
+      type: string
+      default: "."
+      description: Subdirectory within the workspace containing the project
     - name: IMAGE_REGISTRY
       type: string
       default: "quay.io/stephennimmo"
@@ -23,11 +24,14 @@ spec:
     - name: CONTAINERFILE
       type: string
       default: "Containerfile"
-      description: Path to the Containerfile relative to the workspace
+      description: Path to the Containerfile relative to the context directory
     - name: TLSVERIFY
       type: string
       default: "true"
       description: Verify TLS on the registry
+  workspaces:
+    - name: source
+      description: The workspace containing the built source code
   results:
     - name: IMAGE_DIGEST
       description: Digest of the built image
@@ -36,7 +40,7 @@ spec:
   steps:
     - name: build
       image: registry.redhat.io/rhel9/buildah:latest
-      workingDir: $(workspaces.source.path)
+      workingDir: $(workspaces.source.path)/$(params.context-dir)
       securityContext:
         runAsUser: 0
         capabilities:

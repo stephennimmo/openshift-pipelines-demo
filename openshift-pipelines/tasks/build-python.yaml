@@ -5,6 +5,11 @@ metadata:
 spec:
   description: >-
     Builds a Python project by installing dependencies.
+  params:
+    - name: context-dir
+      type: string
+      default: "."
+      description: Subdirectory within the workspace containing the project
   workspaces:
     - name: source
       description: The workspace containing the cloned source code
@@ -14,7 +19,7 @@ spec:
       securityContext:
         runAsNonRoot: true
         runAsUser: 1001
-      workingDir: $(workspaces.source.path)
+      workingDir: $(workspaces.source.path)/$(params.context-dir)
       script: |
         #!/usr/bin/env bash
         set -euo pipefail
