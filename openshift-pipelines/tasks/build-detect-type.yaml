@@ -16,6 +16,9 @@ spec:
   steps:
     - name: detect
       image: registry.redhat.io/ubi9/ubi-minimal:latest
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
       workingDir: $(workspaces.source.path)
       script: |
         #!/usr/bin/env bash

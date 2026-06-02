@@ -20,6 +20,9 @@ spec:
   steps:
     - name: build
       image: registry.redhat.io/ubi9/openjdk-21:latest
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
       workingDir: $(workspaces.source.path)
       script: |
         #!/usr/bin/env bash
