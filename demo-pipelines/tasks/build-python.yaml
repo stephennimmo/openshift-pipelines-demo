@@ -1,0 +1,31 @@
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: build-python
+spec:
+  description: >-
+    Builds a Python project by installing dependencies.
+  workspaces:
+    - name: source
+      description: The workspace containing the cloned source code
+  steps:
+    - name: build
+      image: registry.redhat.io/ubi9/python-312:latest
+      workingDir: $(workspaces.source.path)
+      script: |
+        #!/usr/bin/env bash
+        set -euo pipefail
+
+        python -m venv .venv
+        source .venv/bin/activate
+
+        if [ -f "requirements.txt" ]; then
+          pip install --no-cache-dir -r requirements.txt
+        elif [ -f "pyproject.toml" ]; then
+          pip install --no-cache-dir .
+        elif [ -f "setup.py" ]; then
+          pip install --no-cache-dir .
+        else
+          echo "ERROR: No recognized Python build file found"
+          exit 1
+        fi

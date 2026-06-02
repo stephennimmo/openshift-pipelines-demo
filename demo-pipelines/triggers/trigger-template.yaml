@@ -1,0 +1,40 @@
+apiVersion: triggers.tekton.dev/v1beta1
+kind: TriggerTemplate
+metadata:
+  name: central-build-trigger-template
+spec:
+  params:
+    - name: repo-url
+      description: The Git repository URL
+    - name: repo-name
+      description: The name of the repository
+    - name: commit-sha
+      description: The Git commit SHA
+    - name: branch
+      description: The Git branch ref
+  resourcetemplates:
+    - apiVersion: tekton.dev/v1
+      kind: PipelineRun
+      metadata:
+        generateName: central-build-
+      spec:
+        pipelineRef:
+          name: central-build-pipeline
+        params:
+          - name: repo-url
+            value: $(tt.params.repo-url)
+          - name: repo-name
+            value: $(tt.params.repo-name)
+          - name: commit-sha
+            value: $(tt.params.commit-sha)
+          - name: branch
+            value: $(tt.params.branch)
+        workspaces:
+          - name: source
+            volumeClaimTemplate:
+              spec:
+                accessModes:
+                  - ReadWriteOnce
+                resources:
+                  requests:
+                    storage: 1Gi

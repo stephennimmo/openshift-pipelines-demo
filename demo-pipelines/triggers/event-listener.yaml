@@ -1,0 +1,20 @@
+apiVersion: triggers.tekton.dev/v1beta1
+kind: EventListener
+metadata:
+  name: central-build-listener
+spec:
+  serviceAccountName: pipeline-sa
+  triggers:
+    - name: github-push
+      interceptors:
+        - ref:
+            name: "cel"
+          params:
+            - name: "filter"
+              value: >-
+                header.match('X-GitHub-Event', 'push') &&
+                body.ref.startsWith('refs/heads/')
+      bindings:
+        - ref: github-push-binding
+      template:
+        ref: central-build-trigger-template

@@ -1,0 +1,91 @@
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: central-build-pipeline
+spec:
+  description: >-
+    A centralized build pipeline that auto-detects project type,
+    runs the appropriate build task, and pushes a container image to Quay.
+  params:
+    - name: repo-url
+      type: string
+      description: The Git repository URL
+    - name: repo-name
+      type: string
+      description: The name of the repository
+    - name: commit-sha
+      type: string
+      description: The Git commit SHA
+    - name: branch
+      type: string
+      description: The Git branch ref
+  workspaces:
+    - name: source
+      description: Shared workspace for the pipeline source code
+  tasks:
+    - name: git-clone
+      taskRef:
+        name: git-clone
+        kind: ClusterTask
+      params:
+        - name: url
+          value: $(params.repo-url)
+        - name: revision
+          value: $(params.commit-sha)
+        - name: deleteExisting
+          value: "true"
+      workspaces:
+        - name: output
+          workspace: source
+
+    - name: build-detect-type
+      taskRef:
+        name: build-detect-type
+      runAfter:
+        - git-clone
+      workspaces:
+        - name: source
+          workspace: source
+
+    - name: build-java-maven
+      taskRef:
+        name: build-java-maven
+      runAfter:
+        - build-detect-type
+      when:
+        - input: $(tasks.build-detect-type.results.build-type)
+          operator: in
+          values:
+            - "java-maven"
+      workspaces:
+        - name: source
+          workspace: source
+
+    - name: build-python
+      taskRef:
+        name: build-python
+      runAfter:
+        - build-detect-type
+      when:
+        - input: $(tasks.build-detect-type.results.build-type)
+          operator: in
+          values:
+            - "python"
+      workspaces:
+        - name: source
+          workspace: source
+
+    - name: build-image-push
+      taskRef:
+        name: build-image-push
+      runAfter:
+        - build-java-maven
+        - build-python
+      params:
+        - name: IMAGE_NAME
+          value: $(params.repo-name)
+        - name: IMAGE_TAG
+          value: $(params.commit-sha)
+      workspaces:
+        - name: source
+          workspace: source

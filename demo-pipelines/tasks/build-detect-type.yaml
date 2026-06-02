@@ -1,0 +1,35 @@
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: build-detect-type
+spec:
+  description: >-
+    Inspects the cloned source to determine the project build type.
+    Checks for Java Maven (pom.xml), Python (requirements.txt or setup.py),
+    and emits the result as a string.
+  workspaces:
+    - name: source
+      description: The workspace containing the cloned source code
+  results:
+    - name: build-type
+      description: The detected build type (java-maven, python, unknown)
+  steps:
+    - name: detect
+      image: registry.redhat.io/ubi9/ubi-minimal:latest
+      workingDir: $(workspaces.source.path)
+      script: |
+        #!/usr/bin/env bash
+        set -euo pipefail
+
+        BUILD_TYPE="unknown"
+
+        if [ -f "pom.xml" ] && [ -f "mvnw" ]; then
+          BUILD_TYPE="java-maven"
+        fi
+
+        if [ -f "requirements.txt" ] || [ -f "setup.py" ] || [ -f "pyproject.toml" ]; then
+          BUILD_TYPE="python"
+        fi
+
+        echo "Detected build type: ${BUILD_TYPE}"
+        printf "%s" "${BUILD_TYPE}" > "$(results.build-type.path)"

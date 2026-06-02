@@ -1,0 +1,40 @@
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: build-java-maven
+spec:
+  description: >-
+    Builds a Java Maven project using the Maven wrapper.
+  workspaces:
+    - name: source
+      description: The workspace containing the cloned source code
+  params:
+    - name: MAVEN_GOALS
+      type: string
+      default: "package"
+      description: Maven goals to execute
+    - name: SKIP_TESTS
+      type: string
+      default: "true"
+      description: Whether to skip tests during the build
+  steps:
+    - name: build
+      image: registry.redhat.io/ubi9/openjdk-21:latest
+      workingDir: $(workspaces.source.path)
+      script: |
+        #!/usr/bin/env bash
+        set -euo pipefail
+
+        if [ -f "mvnw" ]; then
+          chmod +x mvnw
+          ./mvnw $(params.MAVEN_GOALS) \
+            -DskipTests=$(params.SKIP_TESTS) \
+            -Dquarkus.package.jar.type=fast-jar \
+            --no-transfer-progress
+        else
+          echo "ERROR: Maven wrapper not found"
+          exit 1
+        fi
+      env:
+        - name: MAVEN_OPTS
+          value: "-Xmx1024m"

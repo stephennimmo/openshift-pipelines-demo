@@ -1,0 +1,83 @@
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: build-image-push
+spec:
+  description: >-
+    Builds a container image using buildah with the Containerfile
+    in the project root, then pushes to quay.io.
+  workspaces:
+    - name: source
+      description: The workspace containing the built source code
+  params:
+    - name: IMAGE_REGISTRY
+      type: string
+      default: "quay.io/stephennimmo"
+      description: The container image registry and namespace
+    - name: IMAGE_NAME
+      type: string
+      description: The name of the image to build
+    - name: IMAGE_TAG
+      type: string
+      description: The tag for the image
+    - name: CONTAINERFILE
+      type: string
+      default: "Containerfile"
+      description: Path to the Containerfile relative to the workspace
+    - name: TLSVERIFY
+      type: string
+      default: "true"
+      description: Verify TLS on the registry
+  results:
+    - name: IMAGE_DIGEST
+      description: Digest of the built image
+    - name: IMAGE_URL
+      description: Full URL of the pushed image
+  steps:
+    - name: build
+      image: registry.redhat.io/rhel9/buildah:latest
+      workingDir: $(workspaces.source.path)
+      securityContext:
+        capabilities:
+          add:
+            - SETFCAP
+      script: |
+        #!/usr/bin/env bash
+        set -euo pipefail
+
+        IMAGE_FULL="$(params.IMAGE_REGISTRY)/$(params.IMAGE_NAME):$(params.IMAGE_TAG)"
+        IMAGE_LATEST="$(params.IMAGE_REGISTRY)/$(params.IMAGE_NAME):latest"
+
+        echo "Building image: ${IMAGE_FULL}"
+        buildah bud \
+          --tls-verify=$(params.TLSVERIFY) \
+          --layers \
+          -f $(params.CONTAINERFILE) \
+          -t "${IMAGE_FULL}" \
+          -t "${IMAGE_LATEST}" \
+          .
+
+        echo "Pushing image: ${IMAGE_FULL}"
+        buildah push \
+          --tls-verify=$(params.TLSVERIFY) \
+          --digestfile /tmp/image-digest \
+          "${IMAGE_FULL}" \
+          "docker://${IMAGE_FULL}"
+
+        echo "Pushing image: ${IMAGE_LATEST}"
+        buildah push \
+          --tls-verify=$(params.TLSVERIFY) \
+          "${IMAGE_LATEST}" \
+          "docker://${IMAGE_LATEST}"
+
+        DIGEST=$(cat /tmp/image-digest)
+        printf "%s" "${DIGEST}" > "$(results.IMAGE_DIGEST.path)"
+        printf "%s" "${IMAGE_FULL}" > "$(results.IMAGE_URL.path)"
+
+        echo "Image pushed successfully: ${IMAGE_FULL}@${DIGEST}"
+      volumeMounts:
+        - name: varlibcontainers
+          mountPath: /var/lib/containers
+  volumes:
+    - name: varlibcontainers
+      emptyDir: {}
