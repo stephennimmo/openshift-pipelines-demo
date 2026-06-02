@@ -20,9 +20,6 @@ spec:
       spec:
         taskRunTemplate:
           serviceAccountName: pipeline-sa
-          podTemplate:
-            securityContext:
-              fsGroup: 65532
         pipelineRef:
           name: central-build-pipeline
         params:
