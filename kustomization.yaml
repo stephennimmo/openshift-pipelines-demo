@@ -3,6 +3,3 @@ kind: Kustomization
 namespace: openshift-pipelines
 resources:
   - operator
-  - tasks
-  - pipeline
-  - triggers

@@ -18,30 +18,6 @@ A centralized OpenShift Pipelines (Tekton) setup that provides a single entry po
 └── kustomization.yaml
 ```
 
-## Architecture
-
-```
-GitHub Webhook --> EventListener --> TriggerBinding --> TriggerTemplate --> PipelineRun
-                                                                              |
-                                                                              v
-                                                                    Central Build Pipeline
-                                                                              |
-                                                              +---------------+---------------+
-                                                              |               |               |
-                                                          git-clone    build-detect-type      |
-                                                                              |               |
-                                                                    +---------+---------+     |
-                                                                    |                   |     |
-                                                            build-java-maven      build-python|
-                                                                    |                   |     |
-                                                                    +---------+---------+     |
-                                                                              |               |
-                                                                      build-image-push--------+
-                                                                              |
-                                                                              v
-                                                                  quay.io/stephennimmo
-```
-
 ## Components
 
 ### Operator
@@ -95,12 +71,12 @@ The detected type is emitted as a task result, and `when` expressions on the bui
 
 ## Installation
 
-### Step 1 -- Deploy Everything
+### Step 1 -- Install the Operator
 
-Apply the kustomization to install the OpenShift Pipelines operator, create the `openshift-pipelines` namespace, and deploy the centralized pipeline tasks, triggers, and RBAC:
+Apply the operator kustomization to create the `openshift-pipelines` namespace and install the OpenShift Pipelines operator:
 
 ```shell
-oc apply -k .
+oc apply -k operator
 ```
 
 Wait for the operator to install and Tekton components to become ready:
@@ -109,21 +85,25 @@ Wait for the operator to install and Tekton components to become ready:
 oc wait --for=condition=Ready tektonconfig/config --timeout=300s -n openshift-pipelines
 ```
 
-Once ready, re-apply to ensure the Tekton CRD-based resources (Tasks, Pipeline, Triggers) are created:
+### Step 2 -- Deploy Pipeline Resources
+
+Once the operator is ready, deploy the custom tasks, pipeline, and triggers:
 
 ```shell
-oc apply -k .
+oc apply -k pipelines
+oc apply -k tasks
+oc apply -k triggers
 ```
 
-### Step 2 -- Get the EventListener Route URL
+### Step 3 -- Get the EventListener Route URL
 
-The Route is created automatically by the kustomization. Retrieve the URL for configuring webhooks:
+Retrieve the EventListener Route URL for configuring webhooks:
 
 ```shell
 oc get route el-central-build-listener -n openshift-pipelines -o jsonpath='{.spec.host}'
 ```
 
-### Step 3 -- Configure the Quay.io Registry Secret
+### Step 4 -- Configure the Quay.io Registry Secret
 
 Create a secret with your Quay.io credentials so that `build-image-push` can push images:
 
@@ -141,19 +121,19 @@ Link the secret to the pipeline service account:
 oc secrets link pipeline-sa quay-auth --for=mount -n openshift-pipelines
 ```
 
-### Step 4 -- Configure GitHub Webhooks
+### Step 5 -- Configure GitHub Webhooks
 
 For each repository you want the central pipeline to build, add a webhook in the GitHub repository settings:
 
 1. Go to **Settings > Webhooks > Add webhook**
 2. Set the following:
-   - **Payload URL:** `http://<route-url>` (from Step 2)
+   - **Payload URL:** `http://<route-url>` (from Step 3)
    - **Content type:** `application/json`
    - **Secret:** *(optional, recommended for production)*
    - **Events:** Select **Just the push event**
 3. Click **Add webhook**
 
-### Step 5 -- Verify
+### Step 6 -- Verify
 
 Push a commit to a configured repository and verify the pipeline runs:
 
